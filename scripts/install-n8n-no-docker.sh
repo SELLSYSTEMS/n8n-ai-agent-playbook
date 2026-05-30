@@ -34,7 +34,7 @@ if [[ -z "${N8N_ENCRYPTION_KEY:-}" ]]; then
 fi
 
 apt-get update
-apt-get install -y git ca-certificates curl gnupg2 build-essential
+apt-get install -y git ca-certificates curl gnupg2 build-essential openssl
 
 if ! command -v node >/dev/null 2>&1; then
   curl -fsSL https://deb.nodesource.com/setup_lts.x | bash -
@@ -122,6 +122,12 @@ EOF
 
 systemctl daemon-reload
 systemctl enable --now n8n
+
+if ! systemctl is-active --quiet n8n; then
+  echo "[${BASENAME}] WARNING: service not active after start; showing status"
+  systemctl --no-pager --full status n8n || true
+  exit 1
+fi
 
 sleep 2
 echo "[${BASENAME}] status"

@@ -23,7 +23,7 @@ if grep -q -i "Welcome to nginx" /tmp/n8n_root.html; then
   exit 3
 fi
 
-if ! grep -q -Ei "n8n|n8n.io|N8N|Workflow|Sign in" /tmp/n8n_root.html; then
+if ! grep -q -Ei "n8n|n8n.io|N8N|Workflow|Sign in|Create an account|Login" /tmp/n8n_root.html; then
   echo "WARN: n8n markers not found in root response. Checking health endpoint."
 fi
 

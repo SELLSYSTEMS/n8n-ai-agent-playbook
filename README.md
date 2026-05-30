@@ -71,6 +71,18 @@ export SSH_OPTS
   liven8nleonyo.sellsystems.agency 5678
 ```
 
+One-shot deployment + verification from admin machine:
+
+```bash
+cd /home/n8n
+export SSH_OPTS="-i ~/.ssh/id_rsa -o StrictHostKeyChecking=no"
+./scripts/provision-n8n-instance.sh root@65.109.64.152 \
+  liven8nleonyo.sellsystems.agency 5678
+
+./scripts/verify-remote-instance.sh root@65.109.64.152 liven8nleonyo.sellsystems.agency
+./scripts/check-n8n-url.sh liven8nleonyo.sellsystems.agency
+```
+
 If your SSH user is not `root`, replace it:
 
 ```bash
@@ -118,6 +130,9 @@ sudo ./scripts/configure-main-nginx-proxy.sh \
   127.0.0.1 \
   5678
 ```
+
+For environments where proxy and instance are different hosts, use the private IP
+of the instance in the second argument.
 
 ## 4) Environment variables used
 
