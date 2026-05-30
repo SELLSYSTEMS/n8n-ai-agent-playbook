@@ -25,6 +25,15 @@ export N8N_USER="n8n"
 export N8N_DATA_DIR="/var/lib/n8n"
 ```
 
+Example for your domain:
+
+```bash
+export N8N_INSTANCE_DOMAIN="liven8nleonyo.sellsystems.agency"
+export N8N_PORT="5678"
+export N8N_USER="n8n"
+export N8N_DATA_DIR="/var/lib/n8n"
+```
+
 Optional basic-auth:
 
 ```bash
@@ -65,6 +74,17 @@ Main host should proxy HTTPS to the instance (internal HTTP endpoint):
 Use `/home/n8n/templates/n8n-proxy-main-host.conf` as a starting point for the
 main-host proxy config.
 
+Render a filled copy (replace `INSTANCE_IP` with the internal IP of this n8n
+VM):
+
+```bash
+./scripts/render-main-proxy-conf.sh \
+  liven8nleonyo.sellsystems.agency \
+  65.109.64.152 \
+  5678 \
+  /tmp/liven8n-leon-n8n.conf
+```
+
 ## 4) Environment variables used
 
 The installer writes variables in `/etc/n8n/n8n.env`:
@@ -91,6 +111,17 @@ curl -sS "http://127.0.0.1:${N8N_PORT:-5678}/healthz"
 From your browser:
 
 - open `https://$N8N_INSTANCE_DOMAIN`
+
+From the edge host, use this check to confirm readiness:
+
+```bash
+./scripts/check-n8n-url.sh liven8nleonyo.sellsystems.agency
+```
+
+Successful readiness checks return:
+
+- `HTTP/200` at `https://liven8nleonyo.sellsystems.agency/` with n8n HTML markers
+- `HTTP/200` for `https://liven8nleonyo.sellsystems.agency/healthz`
 
 ## 6) Log installation issues locally
 

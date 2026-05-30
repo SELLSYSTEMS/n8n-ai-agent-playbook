@@ -11,3 +11,6 @@ Use this file to record install attempts, failures, and resolutions.
 - Command used: ...
 - Validation: ...
 
+
+### 2026-05-30T10:03:08+00:00
+- Initial readiness check for https://liven8nleonyo.sellsystems.agency failed: returns default Nginx welcome page; SSH to 65.109.64.152 blocked from this network (port 22 closed/public-key required). Root/Candidate users ubuntu/debian/admin/n8n/deploy also denied publickey.
