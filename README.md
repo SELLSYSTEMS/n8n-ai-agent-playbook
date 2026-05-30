@@ -54,6 +54,21 @@ cd /home/n8n
 sudo ./scripts/install-n8n-no-docker.sh
 ```
 
+If you cannot login directly from this chat environment, run from your admin machine:
+
+```bash
+cd /home/n8n
+./scripts/provision-n8n-instance.sh root@65.109.64.152 \
+  liven8nleonyo.sellsystems.agency 5678
+```
+
+If your SSH user is not `root`, replace it:
+
+```bash
+./scripts/provision-n8n-instance.sh deploy@65.109.64.152 \
+  liven8nleonyo.sellsystems.agency 5678 deploy
+```
+
 ### What the installer does
 
 - installs OS dependencies and Node.js 20 LTS,
