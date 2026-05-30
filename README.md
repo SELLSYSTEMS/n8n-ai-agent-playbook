@@ -14,6 +14,7 @@ Current default behavior assumes:
 - the instance is only exposed via the main host proxy.
 - external HTTPS is already valid due to an existing wildcard certificate on the
   main host.
+- if your main host proxy forwards to instance port `80`, set `N8N_PORT=80`.
 
 ## 1) Prepare values
 
@@ -22,6 +23,14 @@ export N8N_INSTANCE_DOMAIN="your-instance.example.com"
 export N8N_PORT="5678"
 export N8N_USER="n8n"
 export N8N_DATA_DIR="/var/lib/n8n"
+```
+
+Optional basic-auth:
+
+```bash
+export N8N_BASIC_AUTH_ACTIVE=true
+export N8N_BASIC_AUTH_USER="admin"
+export N8N_BASIC_AUTH_PASSWORD="$(openssl rand -base64 24)"
 ```
 
 You can use any domain for each agent/instance later by only changing
@@ -43,6 +52,7 @@ sudo ./scripts/install-n8n-no-docker.sh
 - creates the dedicated `n8n` system user,
 - writes `/etc/n8n/n8n.env` and `/etc/systemd/system/n8n.service`,
 - enables + starts the `n8n` systemd service.
+- sets `N8N_PROTOCOL=https` so generated links and webhooks remain HTTPS.
 
 ## 3) Reverse proxy expectation (main host)
 
