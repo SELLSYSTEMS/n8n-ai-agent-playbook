@@ -2,16 +2,15 @@
 
 set -euo pipefail
 
-if [[ $# -lt 3 ]]; then
-  echo "Usage: $0 <domain> <instance_host> <instance_port> [domain_file_name]"
-  echo "Example: $0 liven8nleonyo.sellsystems.agency 127.0.0.1 5678 liven8nleonyo"
+if [[ $# -lt 2 ]]; then
+  echo "Usage: $0 <domain> <instance_host> [domain_file_name]"
+  echo "Example: $0 <N8N_PUBLIC_DOMAIN> <INSTANCE_PRIVATE_IP> [safe_name]"
   exit 1
 fi
 
 DOMAIN="$1"
 INSTANCE_HOST="$2"
-INSTANCE_PORT="$3"
-NAME="${4:-${DOMAIN//./-}}"
+NAME="${3:-${DOMAIN//./-}}"
 
 if [[ $EUID -ne 0 ]]; then
   echo "Run as root (or with sudo)."
@@ -24,13 +23,11 @@ if [[ ! -d /etc/nginx ]]; then
 fi
 
 if [[ -d /etc/nginx/sites-available && -d /etc/nginx/sites-enabled ]]; then
-  TARGET_DIR="/etc/nginx/sites-available"
-  LINK_DIR="/etc/nginx/sites-enabled"
   FILE="/etc/nginx/sites-available/${NAME}.conf"
+  TARGET_LINK="/etc/nginx/sites-enabled/${NAME}.conf"
 elif [[ -d /etc/nginx/conf.d ]]; then
-  TARGET_DIR="/etc/nginx/conf.d"
-  LINK_DIR=""
   FILE="/etc/nginx/conf.d/${NAME}.conf"
+  TARGET_LINK=""
 else
   echo "Could not locate standard nginx config location."
   exit 1
@@ -47,12 +44,12 @@ server {
     listen 443 ssl;
     server_name ${DOMAIN};
 
-    # SSL files are expected to be configured on this host.
+    # SSL certificates are managed on the main host.
     # ssl_certificate /path/to/fullchain.pem;
     # ssl_certificate_key /path/to/privkey.pem;
 
     location / {
-        proxy_pass http://${INSTANCE_HOST}:${INSTANCE_PORT};
+        proxy_pass http://${INSTANCE_HOST}:80;
         proxy_http_version 1.1;
         proxy_set_header Upgrade \$http_upgrade;
         proxy_set_header Connection "upgrade";
@@ -69,8 +66,8 @@ server {
 }
 EOF
 
-if [[ -n "${LINK_DIR}" ]]; then
-  ln -sf "${FILE}" "${LINK_DIR}/${NAME}.conf"
+if [[ -n "${TARGET_LINK}" ]]; then
+  ln -sf "${FILE}" "${TARGET_LINK}"
 fi
 
 if ! nginx -t; then

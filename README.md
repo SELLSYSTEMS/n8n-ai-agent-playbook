@@ -1,208 +1,105 @@
-# n8n Setup (No Docker, Reverse Proxy, HTTPS-first)
+# n8n No-Docker Playbook (Reusable for New Domains)
 
-This folder contains a practical, repeatable setup for installing n8n on a Linux
-server when:
+This playbook is for non-Docker n8n installs behind a main host reverse proxy with existing HTTPS termination.
 
-- you do not use Docker,
-- the public TLS/HTTPS termination already exists on a main host,
-- n8n is reached through a reverse proxy (main host -> instance) on port 80,
-- the instance domain can change between environments.
+## Architecture (enforced)
 
-Current default behavior assumes:
+- Public endpoint: `https://<N8N_PUBLIC_DOMAIN>/`
+- Main host handles TLS with wildcard certificate and redirects `http -> https`.
+- Main host proxies to instance on port `80`.
+- Instance runs n8n over plain HTTP on port `80`.
+- Public-facing n8n/webhook URLs are forced to `https://<N8N_PUBLIC_DOMAIN>`.
 
-- n8n runs on the instance on `N8N_PORT` (default `5678`).
-- the instance is only exposed via the main host proxy.
-- external HTTPS is already valid due to an existing wildcard certificate on the
-  main host.
-- if your main host proxy forwards to instance port `80`, set `N8N_PORT=80`.
+> Important: this is the contract that should be reused for every new instance.
 
-## 1) Prepare values
+## Files
 
-```bash
-export N8N_INSTANCE_DOMAIN="your-instance.example.com"
-export N8N_PORT="5678"
-export N8N_USER="n8n"
-export N8N_DATA_DIR="/var/lib/n8n"
-```
+- `scripts/install-n8n-no-docker.sh` — installs and configures n8n on the instance (no Docker).
+- `scripts/provision-n8n-instance.sh` — pushes installer and runs it remotely.
+- `scripts/configure-main-nginx-proxy.sh` — writes main-host nginx config and reloads nginx.
+- `scripts/render-main-proxy-conf.sh` — writes a ready-to-apply nginx config snippet.
+- `scripts/run-domain-readiness.sh` — full flow: remote install, proxy config, checks.
+- `scripts/verify-remote-instance.sh` — health/status check on the target instance and public URL.
+- `scripts/check-n8n-url.sh` — HTTPS endpoint readiness checker.
+- `templates/n8n-proxy-main-host.conf` — nginx proxy template.
+- `templates/n8n-systemd.service` — example systemd unit (the installer renders its own file).
 
-Example for your domain:
+## 1) Instance install (required input)
 
-```bash
-export N8N_INSTANCE_DOMAIN="liven8nleonyo.sellsystems.agency"
-export N8N_PORT="5678"
-export N8N_USER="n8n"
-export N8N_DATA_DIR="/var/lib/n8n"
-```
-
-Optional basic-auth:
+On the instance, run:
 
 ```bash
-export N8N_BASIC_AUTH_ACTIVE=true
-export N8N_BASIC_AUTH_USER="admin"
-export N8N_BASIC_AUTH_PASSWORD="$(openssl rand -base64 24)"
-```
-
-You can use any domain for each agent/instance later by only changing
-`N8N_INSTANCE_DOMAIN`.
-
-## 2) Install n8n on the instance
-
-Run as root (or with `sudo`) on the instance:
-
-```bash
+export N8N_PUBLIC_DOMAIN="<N8N_PUBLIC_DOMAIN>"
 cd /home/n8n
 sudo ./scripts/install-n8n-no-docker.sh
 ```
 
-If you cannot login directly from this chat environment, run from your admin machine:
+Notes:
+- `N8N_PUBLIC_DOMAIN` is the only required variable for the instance installer.
+- The instance is configured for HTTP on port `80` and expects the main host to do TLS.
+
+## 2) Main host proxy (mandatory)
+
+### Option A: render then apply manually
 
 ```bash
-cd /home/n8n
-./scripts/provision-n8n-instance.sh root@65.109.64.152 \
-  liven8nleonyo.sellsystems.agency 5678
-```
-
-If SSH requires a non-default key or port:
-
-```bash
-SSH_OPTS="-i ~/.ssh/id_rsa -p 2222"
-export SSH_OPTS
-./scripts/provision-n8n-instance.sh admin@65.109.64.152 \
-  liven8nleonyo.sellsystems.agency 5678
-```
-
-One-shot deployment + verification from admin machine:
-
-```bash
-cd /home/n8n
-export SSH_OPTS="-i ~/.ssh/id_rsa -o StrictHostKeyChecking=no"
-./scripts/provision-n8n-instance.sh root@65.109.64.152 \
-  liven8nleonyo.sellsystems.agency 5678
-
-./scripts/verify-remote-instance.sh root@65.109.64.152 liven8nleonyo.sellsystems.agency
-./scripts/check-n8n-url.sh liven8nleonyo.sellsystems.agency
-```
-
-Or single-command end-to-end from admin machine (provisions, configures proxy, verifies):
-
-```bash
-cd /home/n8n
-export SSH_OPTS="-i ~/.ssh/id_rsa -o StrictHostKeyChecking=no"
-./scripts/run-domain-readiness.sh \
-  root@65.109.64.152 \
-  liven8nleonyo.sellsystems.agency \
-  10.0.0.10 \
-  5678
-```
-
-If your SSH user is not `root`, replace it:
-
-```bash
-./scripts/provision-n8n-instance.sh deploy@65.109.64.152 \
-  liven8nleonyo.sellsystems.agency 5678 deploy
-```
-
-### What the installer does
-
-- installs OS dependencies and Node.js 20 LTS,
-- installs n8n globally with npm,
-- creates the dedicated `n8n` system user,
-- writes `/etc/n8n/n8n.env` and `/etc/systemd/system/n8n.service`,
-- enables + starts the `n8n` systemd service.
-- sets `N8N_PROTOCOL=https` so generated links and webhooks remain HTTPS.
-
-## 3) Reverse proxy expectation (main host)
-
-Main host should proxy HTTPS to the instance (internal HTTP endpoint):
-
-- Browser: `https://$N8N_INSTANCE_DOMAIN`
-- Instance: `http://INSTANCE_IP:$N8N_PORT`
-- SSL: managed only on main host (wildcard cert already in place).
-
-Use `/home/n8n/templates/n8n-proxy-main-host.conf` as a starting point for the
-main-host proxy config.
-
-Render a filled copy (replace `INSTANCE_IP` with the internal IP of this n8n
-VM):
-
-```bash
+INSTANCE_PRIVATE_IP="<INSTANCE_PRIVATE_IP>"
 ./scripts/render-main-proxy-conf.sh \
-  liven8nleonyo.sellsystems.agency \
-  65.109.64.152 \
-  5678 \
-  /tmp/liven8n-leon-n8n.conf
+  ${N8N_PUBLIC_DOMAIN} \
+  ${INSTANCE_PRIVATE_IP} \
+  /tmp/n8n.conf
 ```
 
-On the main host, after confirming the backend IP and port, you can apply the
-proxy directly:
+Apply `/tmp/liven8n.conf` in your main host nginx config and reload nginx.
+
+### Option B: local apply helper (if run on main host)
 
 ```bash
+INSTANCE_PRIVATE_IP="<INSTANCE_PRIVATE_IP>"
 sudo ./scripts/configure-main-nginx-proxy.sh \
-  liven8nleonyo.sellsystems.agency \
-  127.0.0.1 \
-  5678
+  ${N8N_PUBLIC_DOMAIN} \
+  ${INSTANCE_PRIVATE_IP}
 ```
 
-For environments where proxy and instance are different hosts, use the private IP
-of the instance in the second argument.
-
-## 4) Environment variables used
-
-The installer writes variables in `/etc/n8n/n8n.env`:
-
-- `N8N_HOST=0.0.0.0`
-- `N8N_LISTEN_ADDRESS=0.0.0.0`
-- `N8N_PORT=$N8N_PORT`
-- `N8N_PROTOCOL=https` (important for generated links in the n8n UI)
-- `N8N_EDITOR_BASE_URL=https://$N8N_INSTANCE_DOMAIN`
-- `WEBHOOK_URL=https://$N8N_INSTANCE_DOMAIN`
-- `N8N_USER_FOLDER=$N8N_DATA_DIR`
-
-If you keep n8n completely internal behind the main host, these settings keep
-links and webhooks aligned with HTTPS.
-
-## 5) Post-install checks
+## 3) Full one-command flow (agent-friendly)
 
 ```bash
-sudo systemctl status n8n --no-pager
-sudo journalctl -u n8n -n 120 --no-pager
-curl -sS "http://127.0.0.1:${N8N_PORT:-5678}/healthz"
+export SSH_OPTS="-i ~/.ssh/id_rsa -o StrictHostKeyChecking=no"
+INSTANCE_SSH_TARGET="root@<INSTANCE_PRIVATE_IP>"
+./scripts/run-domain-readiness.sh \
+  ${INSTANCE_SSH_TARGET} \
+  ${N8N_PUBLIC_DOMAIN} \
+  ${INSTANCE_PRIVATE_IP}
 ```
 
-From your browser:
-
-- open `https://$N8N_INSTANCE_DOMAIN`
-
-From the edge host, use this check to confirm readiness:
+## 4) Validation
 
 ```bash
-./scripts/check-n8n-url.sh liven8nleonyo.sellsystems.agency
+./scripts/check-n8n-url.sh <N8N_PUBLIC_DOMAIN>
 ```
 
-Successful readiness checks return:
+Expect:
+- HTTPS endpoint responds `200` and serves n8n HTML.
+- `/healthz` responds with `200`.
 
-- `HTTP/200` at `https://liven8nleonyo.sellsystems.agency/` with n8n HTML markers
-- `HTTP/200` for `https://liven8nleonyo.sellsystems.agency/healthz`
+## 5) Reuse for future domains/agents
 
-## 6) Log installation issues locally
+For each new instance/domain, change only:
 
-`notes/installation-log.md` is included for incident notes (command failures,
-timeouts, permission fixes, proxy misroutes). Add entries as you go.
+- `N8N_PUBLIC_DOMAIN` in instance install
+- instance private IP in main-host proxy command
 
-Use:
+Everything else stays the same.
 
-```bash
-./scripts/log-issue.sh "Your issue summary and fix"
-```
+- No Docker.
+- No certificate installation in this playbook (main host SSL already exists).
+- No extra placeholders beyond `<N8N_PUBLIC_DOMAIN>` / `<INSTANCE_PRIVATE_IP>` in this playbook.
 
-## 7) Future updates
+## What changed from common failure patterns
 
-Because this is a local git repo, you can commit updates after each install attempt:
-
-```bash
-git init
-git add .
-git commit -m "Initial n8n no-docker setup"
-```
-
-As issues appear, commit fixes to installer script, service env, and proxy notes.
+- Installer now handles interrupted `npm` installs by removing stale `n8n` package artifacts before reinstalling.
+- Installer now expects and validates:
+  - `n8n` service binary available on PATH (root or local global bin),
+  - service file with `ExecStart=/usr/bin/env n8n`,
+  - `http://127.0.0.1/healthz` as the local readiness check.
+- Main-host proxy and remote checks are documented for the fixed path and port model (`:80` on instance, HTTPS at `https://<N8N_PUBLIC_DOMAIN>/`).

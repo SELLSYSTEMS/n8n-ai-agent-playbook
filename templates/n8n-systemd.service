@@ -5,11 +5,11 @@ Wants=network-online.target
 
 [Service]
 Type=simple
-User=n8n
+User=root
 WorkingDirectory=/var/lib/n8n
 EnvironmentFile=/etc/n8n/n8n.env
 Environment=PATH=/usr/local/bin:/usr/bin:/bin
-ExecStart=/usr/local/bin/n8n
+ExecStart=/usr/bin/env n8n
 Restart=always
 RestartSec=10
 LimitNOFILE=65535

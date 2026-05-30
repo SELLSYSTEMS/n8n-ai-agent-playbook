@@ -2,16 +2,15 @@
 
 set -euo pipefail
 
-if [[ $# -lt 4 ]]; then
-  echo "Usage: $0 <domain> <instance_host> <instance_port> <output_file>"
-  echo "Example: $0 liven8nleonyo.sellsystems.agency 10.0.0.10 5678 /tmp/n8n.conf"
+if [[ $# -lt 3 ]]; then
+  echo "Usage: $0 <domain> <instance_host> <output_file>"
+  echo "Example: $0 <N8N_PUBLIC_DOMAIN> <INSTANCE_PRIVATE_IP> /tmp/n8n.conf"
   exit 1
 fi
 
 DOMAIN="$1"
 INSTANCE_HOST="$2"
-INSTANCE_PORT="$3"
-OUTPUT="$4"
+OUTPUT="$3"
 
 cat > "${OUTPUT}" <<EOF
 # Generated n8n reverse proxy for ${DOMAIN}
@@ -30,7 +29,7 @@ server {
     # ssl_certificate_key /path/to/privkey.pem;
 
     location / {
-        proxy_pass http://${INSTANCE_HOST}:${INSTANCE_PORT};
+        proxy_pass http://${INSTANCE_HOST}:80;
         proxy_http_version 1.1;
         proxy_set_header Upgrade \$http_upgrade;
         proxy_set_header Connection "upgrade";
