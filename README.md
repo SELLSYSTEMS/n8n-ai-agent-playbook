@@ -109,6 +109,16 @@ VM):
   /tmp/liven8n-leon-n8n.conf
 ```
 
+On the main host, after confirming the backend IP and port, you can apply the
+proxy directly:
+
+```bash
+sudo ./scripts/configure-main-nginx-proxy.sh \
+  liven8nleonyo.sellsystems.agency \
+  127.0.0.1 \
+  5678
+```
+
 ## 4) Environment variables used
 
 The installer writes variables in `/etc/n8n/n8n.env`:
