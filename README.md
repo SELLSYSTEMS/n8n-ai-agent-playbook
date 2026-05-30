@@ -62,6 +62,15 @@ cd /home/n8n
   liven8nleonyo.sellsystems.agency 5678
 ```
 
+If SSH requires a non-default key or port:
+
+```bash
+SSH_OPTS="-i ~/.ssh/id_rsa -p 2222"
+export SSH_OPTS
+./scripts/provision-n8n-instance.sh admin@65.109.64.152 \
+  liven8nleonyo.sellsystems.agency 5678
+```
+
 If your SSH user is not `root`, replace it:
 
 ```bash
