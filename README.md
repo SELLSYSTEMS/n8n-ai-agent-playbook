@@ -4,69 +4,50 @@ This playbook is for non-Docker n8n installs behind a main host reverse proxy wi
 
 ## Architecture (enforced)
 
-- Public endpoint: `https://<N8N_PUBLIC_DOMAIN>/`
-- Main host handles TLS with wildcard certificate and redirects `http -> https`.
-- Main host proxies to instance on port `80`.
-- Instance runs n8n over plain HTTP on port `80`.
-- Public-facing n8n/webhook URLs are forced to `https://<N8N_PUBLIC_DOMAIN>`.
+- No Docker.
+- Public endpoint: `https://<N8N_PUBLIC_DOMAIN>/`.
+- HTTPS is always terminated on the main host using an existing wildcard certificate.
+- Main host proxy target is always `instance_private_ip:80`.
+- Instance runs n8n on plain HTTP `80` (`N8N_PROTOCOL=http`).
+- Public-facing URLs are forced to `https://<N8N_PUBLIC_DOMAIN>`.
 
-> Important: this is the contract that should be reused for every new instance.
+> This contract is mandatory and must be reused for every new instance.
 
 ## Repository structure
 
 ```text
 .
-├─ AGENTS.md                         # non-negotiable architecture contract for all agents
-├─ README.md                         # install + runbook + reusable deployment pattern
+├─ AGENTS.md                         # non-negotiable deployment contract for all agents
+├─ README.md                         # runbook + reusable deployment pattern
+├─ CONTRIBUTING.md                   # contribution and change rules
+├─ SECURITY.md                       # vulnerability handling and reporting
 ├─ notes/
 │  └─ installation-log.md            # operational notes
+├─ docs/
+│  └─ agent-reusable-operations.md   # deployment modes, assumptions, agent handoff notes
 ├─ scripts/
 │  ├─ install-n8n-no-docker.sh       # instance installer (source of truth)
 │  ├─ provision-n8n-instance.sh      # remote install helper
 │  ├─ configure-main-nginx-proxy.sh  # apply main-host nginx snippet
 │  ├─ render-main-proxy-conf.sh       # render-ready nginx config file
 │  ├─ run-domain-readiness.sh         # full end-to-end helper flow
-│  ├─ verify-remote-instance.sh       # remote service readiness checks
+│  ├─ verify-remote-instance.sh       # remote service and endpoint checks
 │  ├─ check-n8n-url.sh               # public HTTPS validation
-│  ├─ log-issue.sh                   # local log helper
-│  └─ ...
-└─ templates/
-   ├─ n8n-proxy-main-host.conf      # nginx template for main host
-   └─ n8n-systemd.service           # example unit; installer writes/uses unit config
+│  └─ log-issue.sh                   # local issue log helper
+├─ templates/
+│  ├─ n8n-proxy-main-host.conf      # nginx template for main host
+│  └─ n8n-systemd.service           # unit template used by installer
+└─ .github/
+   ├─ workflows/ci.yml               # repository quality gates
+   └─ ISSUE_TEMPLATE/*               # issue reporting templates
 ```
-
-## Files and purpose
-
-- `AGENTS.md`
-  - Canonical operational contract for how all future instances must be deployed.
-- `README.md`
-  - Reuse guide and commands for new domains/instances.
-- `notes/installation-log.md`
-  - Reference notes and known environment facts.
-- `scripts/install-n8n-no-docker.sh`
-  - Installs and configures n8n on instance (no Docker).
-- `scripts/provision-n8n-instance.sh`
-  - Pushes installer and runs it on remote host.
-- `scripts/configure-main-nginx-proxy.sh`
-  - Writes main-host nginx config and reloads nginx.
-- `scripts/render-main-proxy-conf.sh`
-  - Generates nginx config file for a specific domain+private IP.
-- `scripts/run-domain-readiness.sh`
-  - Executes end-to-end flow for install + proxy + checks.
-- `scripts/verify-remote-instance.sh`
-  - Checks instance service health and endpoint reachability.
-- `scripts/check-n8n-url.sh`
-  - Checks public domain readiness (`https://<N8N_PUBLIC_DOMAIN>/` and `/healthz`).
-- `templates/n8n-proxy-main-host.conf`
-  - Proxy template used by helper scripts.
-- `templates/n8n-systemd.service`
-  - Service template used by installer.
 
 ## What changed from common failure patterns
 
-- Installer now handles interrupted `npm` installs by removing stale `n8n` artifacts before reinstalling.
-- Installer validates runtime path (`/usr/bin/env n8n`) and uses local binary detection.
-- Health checks use `/healthz` (not `/rest/healthz`) for this version.
+- Installer clears stale global n8n artifacts before reinstalling.
+- Service uses `N8N_PORT=80` and `ExecStart=/usr/bin/env n8n` for consistent binary resolution.
+- Health verification uses `/healthz` to match this n8n runtime behavior.
+- Proxy is fixed to plain HTTP on `80` and never depends on per-instance domain placeholders.
 
 ## 1) Instance install (required input)
 
@@ -74,13 +55,12 @@ On the instance, run:
 
 ```bash
 export N8N_PUBLIC_DOMAIN="<N8N_PUBLIC_DOMAIN>"
-cd /home/n8n
 sudo ./scripts/install-n8n-no-docker.sh
 ```
 
 Notes:
-- `N8N_PUBLIC_DOMAIN` is the only required variable for the instance installer.
-- The instance is configured for HTTP on port `80` and expects the main host to do TLS.
+- `N8N_PUBLIC_DOMAIN` is the only required environment variable for the instance.
+- If needed, override `N8N_USER` and `N8N_DATA_DIR`, but keep `N8N_PORT` as `80`.
 
 ## 2) Main host proxy (mandatory)
 
@@ -96,7 +76,7 @@ INSTANCE_PRIVATE_IP="<INSTANCE_PRIVATE_IP>"
 
 Apply `/tmp/n8n.conf` in your main host nginx config and reload nginx.
 
-### Option B: local apply helper (if run on main host)
+### Option B: local apply helper (on main host)
 
 ```bash
 INSTANCE_PRIVATE_IP="<INSTANCE_PRIVATE_IP>"
@@ -123,18 +103,23 @@ INSTANCE_SSH_TARGET="root@<INSTANCE_PRIVATE_IP>"
 ```
 
 Expect:
-- HTTPS endpoint responds `200` and serves n8n HTML.
-- `/healthz` responds with `200`.
+- HTTPS endpoint returns `200` and serves n8n page (not default Nginx page).
+- `/healthz` returns `200`.
 
-## 5) Reuse for future domains/agents
+## 5) Deployment modes (for agent reuse)
 
-For each new instance/domain, change only:
+- `install`: `install-n8n-no-docker.sh` with `N8N_PUBLIC_DOMAIN`.
+- `proxy`: `configure-main-nginx-proxy.sh` with `N8N_PUBLIC_DOMAIN` and instance private IP.
+- `verify`: `verify-remote-instance.sh` + `check-n8n-url.sh`.
+- `full`: `run-domain-readiness.sh` for install + proxy + verify.
 
-- `N8N_PUBLIC_DOMAIN` in instance install
-- instance private IP in main-host proxy command
+For every new instance:
+- only `N8N_PUBLIC_DOMAIN` and instance private IP change.
+- scripts and structure stay the same.
 
-Everything else stays the same.
+## Reuse guardrails
 
-- No Docker.
-- No certificate installation in this playbook (main host SSL already exists).
-- No extra placeholders are required beyond `<N8N_PUBLIC_DOMAIN>` and `<INSTANCE_PRIVATE_IP>`.
+- No Docker usage.
+- No certificate installation in this playbook (handled on main host).
+- Keep wildcard SSL assumptions unchanged.
+- Avoid adding per-agent variables unless they are truly instance-unique.

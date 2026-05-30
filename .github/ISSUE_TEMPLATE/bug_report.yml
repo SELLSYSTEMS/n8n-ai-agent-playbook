@@ -1,0 +1,27 @@
+name: Bug report
+description: Report a bug in the n8n no-docker playbook.
+title: "[Bug] "
+labels: ["bug"]
+body:
+  - type: textarea
+    attributes:
+      label: What happened?
+      description: Describe the exact behavior and outcome.
+    validations:
+      required: true
+  - type: textarea
+    attributes:
+      label: Repro steps
+      description: Provide exact commands executed and output snippets.
+    validations:
+      required: true
+  - type: input
+    attributes:
+      label: Domain / instance variables used
+      description: Use placeholders only (for example <N8N_PUBLIC_DOMAIN>). Do not include real credentials.
+    validations:
+      required: true
+  - type: textarea
+    attributes:
+      label: Environment
+      description: OS, Node version, and script versions (if relevant).

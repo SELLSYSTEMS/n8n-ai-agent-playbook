@@ -1,0 +1,5 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Security issue
+    url: https://github.com/SELLSYSTEMS/n8n-ai-agent-playbook/security/advisories/new
+    about: Please use a private security advisory for secrets or vulnerabilities.

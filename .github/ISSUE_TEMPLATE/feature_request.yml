@@ -1,0 +1,17 @@
+name: Feature request
+description: Suggest improvements for reuse, reliability, or deployment workflow.
+title: "[Feature] "
+labels: ["enhancement"]
+body:
+  - type: textarea
+    attributes:
+      label: Problem / goal
+      description: What gap should this work solve for future instances?
+    validations:
+      required: true
+  - type: textarea
+    attributes:
+      label: Proposed behavior
+      description: Describe the desired behavior and expected outcome.
+    validations:
+      required: true

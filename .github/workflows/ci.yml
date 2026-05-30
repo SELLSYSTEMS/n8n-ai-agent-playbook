@@ -1,0 +1,34 @@
+name: CI
+
+on:
+  push:
+    branches: [ "master", "main" ]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  shell-quality:
+    name: Shell quality checks
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install shellcheck
+        run: sudo apt-get update && sudo apt-get install -y shellcheck
+      - name: Lint shell scripts
+        run: |
+          set -euo pipefail
+          for script in scripts/*.sh; do
+            echo "[check] $script"
+            shellcheck "$script"
+            bash -n "$script"
+          done
+
+      - name: Validate no instance-specific hardcoded domain
+        run: |
+          set -euo pipefail
+          if rg -n "65\\.109\\.64\\.152|liven8nleonyo\.sellsystems\.agency" --glob '!notes/installation-log.md' .; then
+            echo "Hardcoded production details found in reusable files"
+            exit 1
+          fi
