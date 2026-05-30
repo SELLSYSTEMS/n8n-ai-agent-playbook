@@ -1,0 +1,11 @@
+# Prevent generated archives from being committed
+*.zip
+*.tar.gz
+*.tar
+*.tgz
+
+# Local temp files
+*.swp
+*.swo
+/.tmp
+/.cache
