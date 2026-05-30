@@ -83,6 +83,18 @@ export SSH_OPTS="-i ~/.ssh/id_rsa -o StrictHostKeyChecking=no"
 ./scripts/check-n8n-url.sh liven8nleonyo.sellsystems.agency
 ```
 
+Or single-command end-to-end from admin machine (provisions, configures proxy, verifies):
+
+```bash
+cd /home/n8n
+export SSH_OPTS="-i ~/.ssh/id_rsa -o StrictHostKeyChecking=no"
+./scripts/run-domain-readiness.sh \
+  root@65.109.64.152 \
+  liven8nleonyo.sellsystems.agency \
+  10.0.0.10 \
+  5678
+```
+
 If your SSH user is not `root`, replace it:
 
 ```bash
