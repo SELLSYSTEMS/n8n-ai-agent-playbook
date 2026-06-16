@@ -10,6 +10,12 @@ This playbook is for non-Docker n8n installs behind a main host reverse proxy wi
 - Main host proxy target is always `instance_private_ip:80`.
 - Instance runs n8n on plain HTTP `80` (`N8N_PROTOCOL=http`).
 - Public-facing URLs are forced to `https://<N8N_PUBLIC_DOMAIN>`.
+NEVER TOUCH ANY SSH(you no need it at all), SSL(all the certs already active on the main host), WIREGUARD(never touch it and never change any firewall settings) and ANYTHING ELSE NOT RELATED TO THE TASK:
+      - NEVER TOUCH SSH
+      - NEVER TOUCH WIREGUARD
+      - NEVER TOUCH FIREWALL RULES / IPTABLES / UFW / NFTABLES
+      - NEVER TOUCH SSL CERTS OR KEYS
+      - ONLY change files required by the task (example: /etc/n8n/* and dedicated domain reverse-proxy vhost)
 
 > This contract is mandatory and must be reused for every new instance.
 
